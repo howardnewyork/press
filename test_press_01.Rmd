@@ -1,0 +1,134 @@
+---
+title: "Test of Press Regression"
+output: html_notebook
+---
+
+This notebook tests PRESS regression on some datasets.  
+
+See https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/46141.pdf  for more details
+
+PRESS is a non-parametric regression system that scales at O(N)
+
+# Initialize 
+
+```{r}
+library(rstan)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+working_dir = ""  # change this accordingly
+data_dir =paste0(working_dir, "data/")
+stan_dir =paste0(working_dir, "stan/")
+
+
+
+```
+
+# Required Functions
+
+```{r}
+
+#' Create a list of inputs for stan model
+
+press_list = function(J, x, y){
+  
+  x=cbind(1,x)
+  p=ncol(x)
+  N=nrow(x)
+
+  ans = list(
+    N=N,
+    J=J,
+    p= p,
+    x=x,
+    y=y
+  )
+  ans
+}
+
+extractPar <- function(stanRun, pars= NULL){
+  if (is.null(pars)) pars <- unique(stringr::str_match(names(stanRun$par), "[^\\[]*"))
+  results <- list()
+  
+  for (p in 1:length(pars)){
+    parName <- pars[p]
+    parVal <- stanRun$par[
+      grep(pattern = paste0("^",parName, "(\\[|$)"), x = names(stanRun$par))
+      ]
+    results[[p]] <- parVal
+    noMatches <- length(results[[p]])
+    if (noMatches >1) {
+      m <- stringr::str_match_all(string = names(parVal), pattern = "[0-9]+")
+      if (length(m[[1]])>0){
+        m <- do.call(rbind,lapply(m, FUN = function(x) as.numeric((x))))
+        results[[p]] <- array(parVal, apply(m, MARGIN = 2, max))
+      }
+    }
+  }
+  names(results) <- pars
+  results
+}
+
+
+
+```
+
+
+# Compile Model
+
+```{r, echo=FALSE}
+mod_01 = stan_model(file = paste0(stan_dir, "press_01.stan"))
+```
+
+
+
+# Test Against Toy Univariate Examples in Paper
+
+## Independant input and output
+
+```{r}
+N=100
+J=1
+x=1:N
+y=rnorm(N)
+
+stan_list = press_list(J = 1, x = x, y = y)
+
+run_01 = optimizing(object = mod_01, data=stan_list)
+mu = extractPar(run_01, "mu")
+
+results = data.frame(record = 1:N, y=y, mu = mu)
+
+ggplot(results) + geom_point(aes(record, y)) + geom_line(aes(record, mu)) + 
+  labs(title = "Fitting Independent Data")
+
+```
+
+
+## Step function
+
+```{r}
+N=100
+J=3
+x=1:N / 100
+y=rnorm(N, 0.5) + ifelse(x>.25 & x <.75, 10,0)
+#y=rnorm(N, 0.5) + ifelse(x>.5 , 10,0)
+
+stan_list = press_list(J = J, x = x, y = y)
+
+run_01 = optimizing(object = mod_01, data=stan_list)
+#extractPar(run_01)
+mu = extractPar(run_01, "mu")
+W = extractPar(run_01, "W")
+beta = extractPar(run_01, "beta")
+#beta
+#W
+results = data.frame(record = 1:N, y=y, mu = mu)
+
+ggplot(results) + geom_point(aes(record, y)) + geom_line(aes(record, mu)) + 
+  labs(title = "Fitting Independent Data")
+
+```
+
