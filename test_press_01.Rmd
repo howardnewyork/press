@@ -1,6 +1,8 @@
 ---
 title: "Test of Press Regression"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 This notebook tests PRESS regression on some datasets.  
@@ -32,7 +34,7 @@ stan_dir =paste0(working_dir, "stan/")
 
 #' Create a list of inputs for stan model
 
-press_list = function(J, x, y){
+press_list = function(J, x, y, prior_sigma = 2, prior_beta=10){
   
   x=cbind(1,x)
   p=ncol(x)
@@ -43,7 +45,9 @@ press_list = function(J, x, y){
     J=J,
     p= p,
     x=x,
-    y=y
+    y=y,
+    prior_sigma = prior_sigma, 
+    prior_beta = prior_beta
   )
   ans
 }
@@ -113,8 +117,41 @@ ggplot(results) + geom_point(aes(record, y)) + geom_line(aes(record, mu)) +
 N=100
 J=3
 x=1:N / 100
-y=rnorm(N, 0.5) + ifelse(x>.25 & x <.75, 10,0)
+y=rnorm(N, 0.5) + ifelse(x>.25 & x <.75, 8,0)
 #y=rnorm(N, 0.5) + ifelse(x>.5 , 10,0)
+
+stan_list = press_list(J = J, x = x, y = y, prior_sigma = 1, prior_beta = 5)
+
+run_01 = optimizing(object = mod_01, data=stan_list)
+#extractPar(run_01)
+mu = extractPar(run_01, "mu")
+W = extractPar(run_01, "W")
+beta = extractPar(run_01, "beta")
+y_bar = extractPar(run_01, "y_bar")
+
+#beta
+#W
+results = data.frame(record = 1:N, y=y, mu = mu)
+states = data.frame(state=1:J, y_bar = y_bar) 
+
+ggplot(results) + geom_point(aes(record, y)) + geom_line(aes(record, mu)) + 
+  labs(title = "Step Function")
+
+ggplot(states) + geom_point(aes(state, y_bar)) +
+  labs(title = "States for Step Function")
+
+
+```
+
+
+
+## linear function
+
+```{r}
+N=100
+J=10
+x=1:N 
+y=x+ rnorm(N, 0.5) 
 
 stan_list = press_list(J = J, x = x, y = y)
 
@@ -123,12 +160,19 @@ run_01 = optimizing(object = mod_01, data=stan_list)
 mu = extractPar(run_01, "mu")
 W = extractPar(run_01, "W")
 beta = extractPar(run_01, "beta")
-#beta
-#W
+
+y_bar = extractPar(run_01, "y_bar")
+states = data.frame(state=1:J, y_bar = y_bar) 
+
+
 results = data.frame(record = 1:N, y=y, mu = mu)
 
 ggplot(results) + geom_point(aes(record, y)) + geom_line(aes(record, mu)) + 
-  labs(title = "Fitting Independent Data")
+  labs(title = "Linear Function")
+
+ggplot(states) + geom_point(aes(state, y_bar)) +
+  labs(title = "States for Linear Function")
 
 ```
+
 
