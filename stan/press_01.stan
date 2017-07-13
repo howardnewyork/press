@@ -60,7 +60,7 @@ transformed parameters{
 model {
   
   // Priors
-  to_vector(beta_pre) ~ normal(0,5);
+  to_vector(beta_pre) ~ cauchy(0,prior_beta);
   sigma ~ normal(0,prior_sigma);
   
   //Sampling statement

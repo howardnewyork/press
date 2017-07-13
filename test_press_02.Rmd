@@ -1,8 +1,9 @@
 ---
 title: "Test of Press Regression"
 output:
-  html_document: default
+  pdf_document: default
   html_notebook: default
+  html_document: default
 ---
 
 This notebook tests PRESS regression on some datasets.  
@@ -34,7 +35,7 @@ stan_dir =paste0(working_dir, "stan/")
 
 #' Create a list of inputs for stan model
 
-press_list = function(J, x, y, prior_sigma = 2, prior_beta=10){
+press_list = function(J, x, y, prior_sigma = 2, prior_beta=10, tau=1){
   
   x=cbind(1,x)
   p=ncol(x)
@@ -47,8 +48,10 @@ press_list = function(J, x, y, prior_sigma = 2, prior_beta=10){
     x=x,
     y=y,
     prior_sigma = prior_sigma, 
-    prior_beta = prior_beta
+    prior_beta = prior_beta,
+    tau = tau
   )
+  
   ans
 }
 
@@ -101,7 +104,7 @@ y=rnorm(N)
 stan_list = press_list(J = 1, x = x, y = y)
 
 run_01 = optimizing(object = mod_01, data=stan_list)
-mu = extractPar(run_01, "mu")
+mu = extractPar(run_01, "mu")[[1]]
 
 results = data.frame(record = 1:N, y=y, mu = mu)
 
@@ -120,14 +123,14 @@ x=1:N / 100
 y=rnorm(N, 0) + ifelse(x>.25 & x <.75, 8,0)
 #y=rnorm(N, 0.5) + ifelse(x>.5 , 10,0)
 
-stan_list = press_list(J = J, x = x, y = y, prior_sigma = 1, prior_beta = 5)
+stan_list = press_list(J = J, x = x, y = y, prior_sigma = 1, prior_beta = 10)
 
 run_01 = optimizing(object = mod_01, data=stan_list)
 #extractPar(run_01)
-mu = extractPar(run_01, "mu")
-W = extractPar(run_01, "W")
-beta = extractPar(run_01, "beta")
-y_bar = extractPar(run_01, "y_bar")
+mu = extractPar(run_01, "mu")[[1]]
+W = extractPar(run_01, "W")[[1]]
+beta = extractPar(run_01, "beta")[[1]]
+y_bar = extractPar(run_01, "y_bar")[[1]]
 
 #beta
 #W
@@ -158,10 +161,10 @@ stan_list = press_list(J = J, x = x, y = y, prior_sigma = 1, prior_beta = 20)
 
 run_01 = optimizing(object = mod_01, data=stan_list)
 #extractPar(run_01)
-mu = extractPar(run_01, "mu")
-W = extractPar(run_01, "W")
-beta = extractPar(run_01, "beta")
-y_bar = extractPar(run_01, "y_bar")
+mu = extractPar(run_01, "mu")[[1]]
+W = extractPar(run_01, "W")[[1]]
+beta = extractPar(run_01, "beta")[[1]]
+y_bar = extractPar(run_01, "y_bar")[[1]]
 
 #beta
 #W
@@ -200,10 +203,10 @@ stan_list = press_list(J = J, x = x, y = y, prior_sigma = 1, prior_beta = 20)
 
 run_01 = optimizing(object = mod_01, data=stan_list)
 #extractPar(run_01)
-mu = extractPar(run_01, "mu")
-W = extractPar(run_01, "W")
-beta = extractPar(run_01, "beta")
-y_bar = extractPar(run_01, "y_bar")
+mu = extractPar(run_01, "mu")[[1]]
+W = extractPar(run_01, "W")[[1]]
+beta = extractPar(run_01, "beta")[[1]]
+y_bar = extractPar(run_01, "y_bar")[[1]]
 
 results = data.frame(record = 1:N, y=y, mu = mu)
 states = data.frame(state=1:J, y_bar = y_bar) 
@@ -222,13 +225,13 @@ ggplot(states) + geom_point(aes(state, y_bar)) +
 
 ```{r}
 N=100
-J=5
+J=6
 x=1:N 
-y=x+ rnorm(N, 0.5) 
+y=x+ rnorm(N, 0,1) 
 
-stan_list = press_list(J = J, x = x, y = y, prior_beta = 15)
+stan_list = press_list(J = J, x = x, y = y, prior_beta = 10)
 
-run_01 = optimizing(object = mod_01, data=stan_list)
+run_01 = optimizing(object = mod_01, data=stan_list, iter=4000)
 #extractPar(run_01)
 mu = extractPar(run_01, "mu")
 W = extractPar(run_01, "W")
@@ -248,4 +251,88 @@ ggplot(states) + geom_point(aes(state, y_bar)) +
 
 ```
 
+
+
+
+## Abalone hors d'oeuvres
+
+Data was derived from here:
+Training:  http://download.tensorflow.org/data/abalone_train.csv
+Test:  http://download.tensorflow.org/data/abalone_test.csv
+
+```{r}
+
+#Training Data
+x= read.csv(paste0(data_dir,"abalone_train.csv"), header = F)
+y=x[,8]
+x[,8]=NULL
+
+#Test Data
+x_test= read.csv(paste0(data_dir,"abalone_test.csv"), header = F)
+y_test=x_test[,8]
+x_test[,8]=NULL
+
+N=nrow(x)
+N_test=nrow(x_test)
+
+if(FALSE){
+  set.seed(seed = 21111)
+  J=10
+} else {
+  set.seed(seed = 1111)
+  J=11
+}
+
+stan_list = press_list(J = J, x = x, y = y, prior_beta = 17, prior_sigma = 2)
+
+run_01 = optimizing(object = mod_01, data=stan_list, iter=4000)
+#extractPar(run_01)
+mu = extractPar(run_01, "mu")[[1]]
+W = extractPar(run_01, "W")[[1]]
+beta = extractPar(run_01, "beta")[[1]]
+sigma = extractPar(run_01, "sigma")[[1]]
+
+y_bar = extractPar(run_01, "y_bar")[[1]]
+states = data.frame(state=1:J, y_bar = y_bar) 
+
+
+softmax = function(x){
+  x=as.vector(x)
+  e = exp(x) 
+  e / sum(e)
+}
+
+##  Out of sample Prediction
+x_test_1 = as.matrix(cbind(1, x_test))
+W_test = matrix(0, N_test, J)
+for (n in 1:N_test){
+  W_test[n,] = softmax(beta %*% t(x_test_1[n,,drop=F]))
+}
+mu_test = W_test %*% y_bar
+
+results = data.frame(record = 1:N, y=y, mu = mu)
+
+print("In Sample MSE")
+mse = mean((y-mu)^2)
+mse
+
+print("Test MSE")
+mse_test = mean((y_test-mu_test)^2)
+mse_test
+mse_test_2 = mean((y_test-round(mu_test,2))^2)
+mse_test_2
+mse_test_2^.5
+
+print("Test MAD")
+mad_test = mean(abs(y_test-mu_test))
+mad_test
+mad_test_2 = mean(abs(y_test-round(mu_test,0)))
+mad_test_2
+
+
+
+ggplot(states) + geom_point(aes(state, y_bar)) +
+  labs(title = "States for Linear Function")
+
+```
 
